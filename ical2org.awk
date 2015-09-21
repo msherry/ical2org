@@ -101,7 +101,7 @@ BEGIN {
         print "#+AUTHOR:     ", author
         print "#+EMAIL:      ", emailaddress
         print "#+DESCRIPTION: converted using the ical2org awk script"
-        print "#+CATEGORY:    google"
+        print "#+CATEGORY:    pinterest"
         print "#+STARTUP:     hidestars"
         print "#+STARTUP:     overview"
         print ""
@@ -117,6 +117,9 @@ BEGIN {
         entry = entry gensub("\r", "", "g", gensub("^[ ]", "", 1, $0));
     } else if (insummary) {
         summary = summary gensub("\r", "", "g", gensub("^[ ]", "", 1, $0))
+    } else if (inattendee) {
+        attendee = attendee gensub("\r", "", "g", gensub("^[ ]", "", 1, $0))
+        are_we_going(attendee)
     }
     if (preserve)
         icalentry = icalentry "\n" $0
@@ -131,12 +134,15 @@ BEGIN {
     id = ""
     indescription = 0;
     insummary = 0
+    inattendee = 0
+    attending = 0;
     intfreq = "" # the interval and frequency for repeating org timestamps
     lasttimestamp = -1;
     location = ""
     rrend = ""
     status = ""
     summary = ""
+    attendee = ""
 
     # if this is the first event, output the preamble from the iCal file
     if (first) {
@@ -164,6 +170,7 @@ BEGIN {
     # this line terminates the collection of description and summary entries
     indescription = 0;
     insummary = 0;
+    inattendee = 0;
 }
 
 # this type of entry represents a day entry, not timed, with date stamp YYYYMMDD
@@ -249,6 +256,12 @@ BEGIN {
     status = gensub("\r", "", "g", $2);
 }
 
+/^ATTENDEE/ {
+    attendee = gensub("\r", "", "g", $0);
+    inattendee = 1;
+    are_we_going(attendee)
+}
+
 # when we reach the end of the event line, we output everything we
 # have collected so far, creating a top level org headline with the
 # date/time stamp, unique ID property and the contents, if any
@@ -257,35 +270,37 @@ BEGIN {
     #output event
     if(max_age<0 || ( lasttimestamp>0 && systime()<lasttimestamp+max_age_seconds ) )
     {
-        # build org timestamp
-        if (intfreq != "")
-            date = date intfreq
-        if (time2 != "")
-            date = date ">--<" time2
-        else if (rrend != "")
-            date = date ">--<" rrend
+        if (attending) {
+            # build org timestamp
+            if (intfreq != "")
+                date = date intfreq
+            if (time2 != "")
+                date = date ">--<" time2
+            else if (rrend != "")
+                date = date ">--<" rrend
 
-        # translate \n sequences to actual newlines and unprotect commas (,)
-        if (condense)
-            print "* <" date "> " gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary)))
-        else
-            print "* " gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary))) "\n<" date ">"
-        print ":PROPERTIES:"
-        print     ":ID:       " id
-        if(length(location))
-            print ":LOCATION: " location
-        if(length(status))
-            print ":STATUS:   " status
-        print ":END:"
+            # translate \n sequences to actual newlines and unprotect commas (,)
+            if (condense)
+                print "* <" date "> " gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary)))
+            else
+                print "* " gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary))) "\n<" date ">"
+            print ":PROPERTIES:"
+            print     ":ID:       " id
+            if(length(location))
+                print ":LOCATION: " location
+            if(length(status))
+                print ":STATUS:   " status
+            print ":END:"
 
-        print ""
-        # translate \n sequences to actual newlines and unprotect commas (,)
-        if(length(entry)>1)
-            print gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", "\n", "g", entry)));
+            print ""
+            # translate \n sequences to actual newlines and unprotect commas (,)
+            if(length(entry)>1)
+                print gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", "\n", "g", entry)));
 
-        # output original entry if requested by 'original' config option
-        if (original)
-            print "** COMMENT original iCal entry\n", gensub("\r", "", "g", icalentry)
+            # output original entry if requested by 'original' config option
+            if (original)
+                print "** COMMENT original iCal entry\n", gensub("\r", "", "g", icalentry)
+        }
     }
 }
 
@@ -380,6 +395,26 @@ function datestring(input, isenddate)
 
     # return the date and day of week
     return strftime("%Y-%m-%d %a", stamp);
+}
+
+# Parse the current ATTENDEE line and see if it belongs to us. If so, check if
+# we've accepted this calendar invite, and if so, set `attending` to True
+function are_we_going(attendee)
+{
+    match(attendee, /CN=([^;]+)/, m)
+    {
+        CN = m[1]
+        # TODO: no hardcoding
+        if (tolower(CN) == tolower(author) ||
+                tolower(CN) == tolower(emailaddress))
+        {
+            # This is us -- did we accept the meeting?
+            if (attendee ~ /PARTSTAT=ACCEPTED/)
+            {
+                attending = 1;
+            }
+        }
+    }
 }
 
 # Local Variables:
