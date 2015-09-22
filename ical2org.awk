@@ -85,6 +85,11 @@ BEGIN {
     # and to your email address
     emailaddress = "marc@pinterest.com"
 
+    # timezone offsets
+    # TODO: this is stupid
+    tz_offsets["America/Los_Angeles"] = 0
+    tz_offsets["America/Chicago"] = 2
+
     ### end config section
 
     # use a colon to separate the type of data line from the actual contents
@@ -185,18 +190,35 @@ BEGIN {
         time2 = ""
 }
 
+
+
 # this represents a timed entry with date and time stamp YYYYMMDDTHHMMSS
 # we ignore the seconds
-
 /^DTSTART[:;][^V]/ {
-    date = datetimestring($2);
+    tz = "";
+    match($0, /TZID=([^:]*)/, a)
+    {
+        tz = a[1];
+    }
+
+    offset = tz_offsets[tz]
+
+    date = datetimestring($2, offset);
     # print date;
 }
 
 # and the same for the end date;
 
 /^DTEND[:;][^V]/ {
-    time2 = datetimestring($2);
+    tz = "";
+    match($0, /TZID=([^:]*)/, a)
+    {
+        tz = a[1];
+    }
+
+    offset = tz_offsets[tz]
+
+    time2 = datetimestring($2, offset);
     if (substr(date,1,10) == substr(time2,1,10)) {
         # timespan within same date, use one date with a time range
         date = date "-" substr(time2, length(time2)-4)
@@ -274,7 +296,8 @@ BEGIN {
             # build org timestamp
             if (intfreq != "")
                 date = date intfreq
-            if (time2 != "")
+            # TODO: http://orgmode.org/worg/org-faq.html#org-diary-class
+            else if (time2 != "")
                 date = date ">--<" time2
             else if (rrend != "")
                 date = date ">--<" rrend
@@ -311,15 +334,26 @@ BEGIN {
 # of week: 'yyyy-mm-dd day hh:mm' or 'yyyy-mm-dd hh:mm' if we cannot
 # define the day of the week
 
-function datetimestring(input)
+function datetimestring(input, offset)
 {
     # print "________"
     # print "input : " input
     # convert the iCal Date+Time entry to a format that mktime can understand
-    spec  = gensub("([0-9][0-9][0-9][0-9])([0-9][0-9])([0-9][0-9])T([0-9][0-9])([0-9][0-9])([0-9][0-9]).*[\r]*", "\\1 \\2 \\3 \\4 \\5 \\6", "g", input);
+    spec  = match(input, "([0-9]{4})([0-9]{2})([0-9]{2})T([0-9]{2})([0-9]{2})([0-9]{2}).*[\r]*", a);
+    year = a[1]
+    month = a[2]
+    day = a[3]
+    hour = a[4]
+    min = a[6]
+    sec = a[6]
     # print "spec :" spec
 
-    stamp = mktime(spec);
+    if (offset > 0)
+    {
+        hour -= offset
+    }
+
+    stamp = mktime(year" "month" "day" "hour" "min" "sec);
     lasttimestamp = stamp;
 
     if (stamp <= 0) {
@@ -327,7 +361,7 @@ function datetimestring(input)
         # use strftime and will deliver a 'yyyy-mm-dd hh:mm' string
         # without day of week; this assumes local time, and does not
         # attempt UTC offset correction
-        spec = gensub("([0-9][0-9][0-9][0-9])([0-9][0-9])([0-9][0-9])T([0-9][0-9])([0-9][0-9])([0-9][0-9]).*[\r]*", "\\1-\\2-\\3 \\4:\\5", "g", input);
+        spec = gensub("([0-9]{4})([0-9]{2})([0-9]{2})T([0-9]{2})([0-9]{2})([0-9]{2}).*[\r]*", "\\1-\\2-\\3 \\4:\\5", "g", input);
         # print "==> spec:" spec;
         return spec;
     }
