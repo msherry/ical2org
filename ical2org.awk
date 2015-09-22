@@ -230,11 +230,11 @@ BEGIN {
 
 /^RRULE:FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/ {
     # get the d, w, m or y value
-    freq = tolower(gensub(/.*FREQ=(.).*/, "\\1", $0))
+    freq = tolower(gensub(/.*FREQ=(.).*/, "\\1", 1, $0))
     # get the interval, and use 1 if none specified
-    interval =  $2 ~ /INTERVAL=/ ? gensub(/.*INTERVAL=([0-9]+);.*/, "\\1", $2) : 1
+    interval =  $2 ~ /INTERVAL=/ ? gensub(/.*INTERVAL=([0-9]+);.*/, "\\1", 1, $2) : 1
     # get the enddate of the rule and use "" if none specified
-    rrend = $2 ~ /UNTIL=/ ? datestring(gensub(/.*UNTIL=([0-9]{8}).*/, "\\1", $2)) : ""
+    rrend = $2 ~ /UNTIL=/ ? datestring(gensub(/.*UNTIL=([0-9]{8}).*/, "\\1", 1, $2)) : ""
     # build the repetitor vale as understood by org
     intfreq =  " +" interval freq
     # if the repetition is daily, and there is an end date, drop the repetitor
@@ -306,7 +306,7 @@ BEGIN {
             if (condense)
                 print "* <" date "> " gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary)))
             else
-                print "* " gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary))) "\n<" date ">"
+                print "* " gensub("^[ ]+", "", "g", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary))) "\n<" date ">"
             print ":PROPERTIES:"
             print     ":ID:       " id
             if(length(location))
@@ -318,7 +318,7 @@ BEGIN {
             print ""
             # translate \n sequences to actual newlines and unprotect commas (,)
             if(length(entry)>1)
-                print gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", "\n", "g", entry)));
+                print gensub("^[ ]+", "", "g", gensub("\\\\,", ",", "g", gensub("\\\\n", "\n", "g", entry)));
 
             # output original entry if requested by 'original' config option
             if (original)
