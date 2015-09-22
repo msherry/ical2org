@@ -344,7 +344,7 @@ function datetimestring(input, offset)
     month = a[2]
     day = a[3]
     hour = a[4]
-    min = a[6]
+    min = a[5]
     sec = a[6]
     # print "spec :" spec
 
