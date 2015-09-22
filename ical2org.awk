@@ -120,10 +120,13 @@ BEGIN {
 /^[ ]/ {
     if (indescription) {
         entry = entry gensub("\r", "", "g", gensub("^[ ]", "", 1, $0));
+        # print "entry continuation: " entry
     } else if (insummary) {
         summary = summary gensub("\r", "", "g", gensub("^[ ]", "", 1, $0))
+        # print "summary continuation: " summary
     } else if (inattendee) {
         attendee = attendee gensub("\r", "", "g", gensub("^[ ]", "", 1, $0))
+        # print "attendee continuation: " attendee
         are_we_going(attendee)
     }
     if (preserve)
@@ -131,7 +134,7 @@ BEGIN {
 }
 
 /^BEGIN:VEVENT/ {
-    # start of an event: initialize global velues used for each event
+    # start of an event: initialize global values used for each event
     date = "";
     entry = ""
     headline = ""
@@ -255,13 +258,15 @@ BEGIN {
 # the summary will be the org heading
 
 /^SUMMARY/ {
-    $1 = "";
-    summary = gensub("\r", "", "g", $0);
+    # Setting $1 to "" clears colons from items like "1:1 with Marc", so we
+    # strip "SUMMARY" off of the front instead
+    summary = gensub("\r", "", "g", gensub(/^SUMMARY:/, "", 1, $0));
 
     # trim trailing dots if requested by config option
     if(trimdots && summary ~ /\.\.\.$/)
         sub(/\.\.\.$/, "", summary)
     insummary = 1;
+    # print "Summary: " summary
 }
 
 # the unique ID will be stored as a property of the entry
@@ -272,16 +277,19 @@ BEGIN {
 
 /^LOCATION/ {
     location = gensub("\r", "", "g", $2);
+    # print "Location: " location
 }
 
 /^STATUS/ {
     status = gensub("\r", "", "g", $2);
+    # print "Status: " status
 }
 
 /^ATTENDEE/ {
     attendee = gensub("\r", "", "g", $0);
     inattendee = 1;
     are_we_going(attendee)
+    # print "Attendee: " attendee
 }
 
 # when we reach the end of the event line, we output everything we
@@ -290,6 +298,10 @@ BEGIN {
 
 /^END:VEVENT/ {
     #output event
+    # print "max_age: " max_age
+    # print "lasttimestamp: " lasttimestamp
+    # print "lasttimestamp+max_age_seconds: " lasttimestamp+max_age_seconds
+    # print "systime(): " systime()
     if(max_age<0 || ( lasttimestamp>0 && systime()<lasttimestamp+max_age_seconds ) )
     {
         if (attending) {
@@ -353,6 +365,8 @@ function datetimestring(input, offset)
         hour -= offset
     }
 
+    # print "input: " input
+    # print "datetime: " year" "month" "day" "hour" "min" "sec
     stamp = mktime(year" "month" "day" "hour" "min" "sec);
     lasttimestamp = stamp;
 
@@ -391,7 +405,7 @@ function datetimestring(input, offset)
 function datestring(input, isenddate)
 {
     #convert the iCal string to a an mktime input string
-    spec = gensub("([0-9][0-9][0-9][0-9])([0-9][0-9])([0-9][0-9]).*[\r]*", "\\1 \\2 \\3 00 00 00", "g", input);
+    spec = gensub("([0-9]{4})([0-9]{2})([0-9]{2}).*[\r]*", "\\1 \\2 \\3 00 00 00", "g", input);
 
     # compute the nr of seconds after or before the epoch
     # dates before the epoch will have a negative timestamp
@@ -420,10 +434,10 @@ function datestring(input, isenddate)
             # to obtain the string representation of the corrected timestamp;
             # we have to return the date specified in the iCal input and we
             # add time 00:00 to clarify this
-            return spec = gensub("([0-9][0-9][0-9][0-9])([0-9][0-9])([0-9][0-9]).*[\r]*", "\\1-\\2-\\3 00:00", "g", input);
+            return spec = gensub("([0-9]{4})([0-9]{2})([0-9]{2}).*[\r]*", "\\1-\\2-\\3 00:00", "g", input);
         } else {
             # just generate the desired representation of the input date, without time;
-            return gensub("([0-9][0-9][0-9][0-9])([0-9][0-9])([0-9][0-9]).*[\r]*", "\\1-\\2-\\3", "g", input);
+            return gensub("([0-9]{4})([0-9]{2})([0-9]{2}).*[\r]*", "\\1-\\2-\\3", "g", input);
         }
     }
 
@@ -437,10 +451,9 @@ function are_we_going(attendee)
 {
     match(attendee, /CN=([^;]+)/, m)
     {
-        CN = m[1]
+        CN = tolower(m[1])
         # TODO: no hardcoding
-        if (tolower(CN) == tolower(author) ||
-                tolower(CN) == tolower(emailaddress))
+        if (CN == tolower(author) || CN == tolower(emailaddress))
         {
             # This is us -- did we accept the meeting?
             if (attendee ~ /PARTSTAT=ACCEPTED/)
@@ -449,6 +462,7 @@ function are_we_going(attendee)
             }
         }
     }
+    # print "are_we_going: " attending
 }
 
 # Local Variables:
