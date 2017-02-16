@@ -83,7 +83,10 @@ BEGIN {
     author = "Marc Sherry"
 
     # and to your email address
-    emailaddress = "marc@pinterest.com"
+    emailaddress = ENVIRON["EMAIL"] != "" ? ENVIRON["EMAIL"] : "unknown calendar"
+
+    # calendar/category name for display in org-mode
+    calendarname = ENVIRON["CALENDAR_NAME"] != "" ? ENVIRON["CALENDAR_NAME"] : "unknown calendar"
 
     # timezone offsets
     # TODO: this is stupid
@@ -106,7 +109,7 @@ BEGIN {
         print "#+AUTHOR:     ", author
         print "#+EMAIL:      ", emailaddress
         print "#+DESCRIPTION: converted using the ical2org awk script"
-        print "#+CATEGORY:    pinterest"
+        print "#+CATEGORY:   ", calendarname
         print "#+STARTUP:     hidestars"
         print "#+STARTUP:     overview"
         print ""
@@ -283,6 +286,14 @@ BEGIN {
 /^STATUS/ {
     status = gensub("\r", "", "g", $2);
     # print "Status: " status
+
+    # TODO: unsure what a "CONFIRMED" status means, but let's try using that to
+    # indicate that we're attending an event with no attendees (e.g. personal
+    # calendar events)
+    if(status == "CONFIRMED")
+    {
+        attending = 1;
+    }
 }
 
 /^ATTENDEE/ {
