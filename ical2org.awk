@@ -51,6 +51,15 @@
 BEGIN {
     ### config section
 
+    attending_types["UNSET"] = 0;
+    attending_types["ATTENDING"] = 1;
+    attending_types["NEEDS_ACTION"] = 2;
+    attending_types["NOT_ATTENDING"] = 3;
+    attending_types[0] = "UNSET";
+    attending_types[1] = "ATTENDING";
+    attending_types[2] = "NEEDS_ACTION";
+    attending_types[3] = "NOT_ATTENDING";
+
     # maximum age in days for entries to be output: set this to -1 to
     # get all entries or to N>0 to only get enties that start or end
     # less than N days ago
@@ -66,7 +75,8 @@ BEGIN {
 
     # set to 1 to output time and summary as one line starting with
     # the time (value 1) or to 0 to output the summary as first line
-    # and the date and time info as a second line
+    # and the date and time info as a later line (after the property
+    # drawer or org complains)
     condense = 0;
 
     # set to 1 or 0 to yes or not output the original ical entry as a
@@ -146,7 +156,7 @@ BEGIN {
     indescription = 0;
     insummary = 0
     inattendee = 0
-    attending = 0;
+    attending = attending_types["UNSET"];
     intfreq = "" # the interval and frequency for repeating org timestamps
     lasttimestamp = -1;
     location = ""
@@ -286,20 +296,11 @@ BEGIN {
 /^STATUS/ {
     status = gensub("\r", "", "g", $2);
     # print "Status: " status
-
-    # TODO: unsure what a "CONFIRMED" status means, but let's try using that to
-    # indicate that we're attending an event with no attendees (e.g. personal
-    # calendar events)
-    if(status == "CONFIRMED")
-    {
-        attending = 1;
-    }
 }
 
 /^ATTENDEE/ {
     attendee = gensub("\r", "", "g", $0);
     inattendee = 1;
-    are_we_going(attendee)
     # print "Attendee: " attendee
 }
 
@@ -313,9 +314,12 @@ BEGIN {
     # print "lasttimestamp: " lasttimestamp
     # print "lasttimestamp+max_age_seconds: " lasttimestamp+max_age_seconds
     # print "systime(): " systime()
+
+    # TODO: this is where to fix recurring entries that stop showing up -- fix
+    # lasttimestamp and/or max_age_seconds
     if(max_age<0 || ( lasttimestamp>0 && systime()<lasttimestamp+max_age_seconds ) )
     {
-        if (attending) {
+        if (attending != attending_types["NOT_ATTENDING"]) {
             # build org timestamp
             if (intfreq != "")
                 date = date intfreq
@@ -329,14 +333,18 @@ BEGIN {
             if (condense)
                 print "* <" date "> " gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary)))
             else
-                print "* " gensub("^[ ]+", "", "g", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary))) "\n<" date ">"
-            print ":PROPERTIES:"
-            print     ":ID:       " id
+                print "* " gensub("^[ ]+", "", "g", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary)))
+            print "  :PROPERTIES:"
+            print     "  :ID:        " id
             if(length(location))
-                print ":LOCATION: " location
+                print "  :LOCATION:  " location
             if(length(status))
-                print ":STATUS:   " status
-            print ":END:"
+                print "  :STATUS:    " status
+            attending_string = attending_types[attending]
+            print "  :ATTENDING: " attending_string
+            print "  :END:"
+            if (!condense)
+                 print "<" date ">"
 
             print ""
             # translate \n sequences to actual newlines and unprotect commas (,)
@@ -457,9 +465,18 @@ function datestring(input, isenddate)
 }
 
 # Parse the current ATTENDEE line and see if it belongs to us. If so, check if
-# we've accepted this calendar invite, and if so, set `attending` to True
+# we've accepted this calendar invite, and if so, set `attending` to True. It
+# may be the case that there are no attendees (e.g. personal calendar items),
+# and if that's the case, we'll leave `attending` unset. If there are attendees,
+# we'll parse our status out and set `attending` appropriately.
 function are_we_going(attendee)
 {
+    if (attending != attending_types["UNSET"])
+    {
+        # print "Bailing out early, attending is " attending
+        return;
+    }
+
     match(attendee, /CN=([^;]+)/, m)
     {
         CN = tolower(m[1])
@@ -469,7 +486,14 @@ function are_we_going(attendee)
             # This is us -- did we accept the meeting?
             if (attendee ~ /PARTSTAT=ACCEPTED/)
             {
-                attending = 1;
+                attending = attending_types["ATTENDING"];
+            }
+            else if (attendee ~ /PARTSTAT=NEEDS-ACTION/)
+            {
+                attending = attending_types["NEEDS_ACTION"];
+            }
+            else {
+                attending = attending_types["NOT_ATTENDING"];
             }
         }
     }
