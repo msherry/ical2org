@@ -93,10 +93,10 @@ BEGIN {
     author = "Marc Sherry"
 
     # and to your email address
-    emailaddress = ENVIRON["EMAIL"] != "" ? ENVIRON["EMAIL"] : "unknown calendar"
+    emailaddress = ENVIRON["EMAIL"] != "" ? ENVIRON["EMAIL"] : "unknown"
 
     # calendar/category name for display in org-mode
-    calendarname = ENVIRON["CALENDAR"] != "" ? ENVIRON["CALENDAR"] : "unknown calendar"
+    calendarname = ENVIRON["CALENDAR"] != "" ? ENVIRON["CALENDAR"] : "unknown"
 
     # timezone offsets
     # TODO: this is stupid
@@ -290,6 +290,8 @@ BEGIN {
 
 /^LOCATION/ {
     location = gensub("\r", "", "g", $2);
+    # Unescape commas
+    location = gensub("\\\\,", ",", "g", location);
     # print "Location: " location
 }
 
