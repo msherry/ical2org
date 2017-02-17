@@ -60,6 +60,10 @@ BEGIN {
     attending_types[2] = "NEEDS_ACTION";
     attending_types[3] = "NOT_ATTENDING";
 
+    # map of UIDS for duplicate checking -- sometimes the same id comes down
+    # with multiple VEVENTS
+    UIDS[0];
+
     # maximum age in days for entries to be output: set this to -1 to
     # get all entries or to N>0 to only get enties that start or end
     # less than N days ago
@@ -259,7 +263,8 @@ BEGIN {
     # as that is the default
     if (intfreq == " +1d" && time2 == "" && rrend != "")
         intfreq = ""
-    if (rrend_raw < strftime("%Y%m%dT%H%M%SZ"))
+    now = strftime("%Y%m%dT%H%M%SZ")
+    if (rrend_raw != "" && rrend_raw < now)
         intfreq = ""
     if (repeat_count != "")      # TODO: count repeats correctly
         intfreq = ""
@@ -323,11 +328,8 @@ BEGIN {
     # print "lasttimestamp+max_age_seconds: " lasttimestamp+max_age_seconds
     # print "systime(): " systime()
 
-    # print "Final SUMMARY: " summary
-    # print "intfreq: " intfreq
-    # TODO: this is where to fix recurring entries that stop showing up -- fix
-    # lasttimestamp and/or max_age_seconds
-    if(max_age<0 || intfreq != "" || ( lasttimestamp>0 && systime()<lasttimestamp+max_age_seconds ) )
+    is_duplicate = (id in UIDS);
+    if(is_duplicate == 0 && (max_age<0 || intfreq != "" || ( lasttimestamp>0 && systime()<lasttimestamp+max_age_seconds )) )
     {
         if (attending != attending_types["NOT_ATTENDING"]) {
             # build org timestamp
@@ -365,6 +367,7 @@ BEGIN {
             if (original)
                 print "** COMMENT original iCal entry\n", gensub("\r", "", "g", icalentry)
         }
+        UIDS[id] = 1;
     }
 }
 
