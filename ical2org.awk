@@ -60,6 +60,10 @@ BEGIN {
     attending_types[2] = "NEEDS_ACTION";
     attending_types[3] = "NOT_ATTENDING";
 
+    # map of UIDS for duplicate checking -- sometimes the same id comes down
+    # with multiple VEVENTS
+    UIDS[0];
+
     # maximum age in days for entries to be output: set this to -1 to
     # get all entries or to N>0 to only get enties that start or end
     # less than N days ago
@@ -251,11 +255,18 @@ BEGIN {
     interval =  $2 ~ /INTERVAL=/ ? gensub(/.*INTERVAL=([0-9]+);.*/, "\\1", 1, $2) : 1
     # get the enddate of the rule and use "" if none specified
     rrend = $2 ~ /UNTIL=/ ? datestring(gensub(/.*UNTIL=([0-9]{8}).*/, "\\1", 1, $2)) : ""
+    rrend_raw = $2 ~ /UNTIL=/ ? gensub(/.*UNTIL=([0-9]{8}).*/, "\\1", 1, $2) : ""
+    repeat_count = $2 ~ /COUNT=/ ? gensub(/.*COUNT=([0-9]+).*/, "\\1", 1, $2) : ""
     # build the repetitor vale as understood by org
     intfreq =  " +" interval freq
     # if the repetition is daily, and there is an end date, drop the repetitor
     # as that is the default
-    if (intfreq == " +1d" && time2 =="" && rrend != "")
+    if (intfreq == " +1d" && time2 == "" && rrend != "")
+        intfreq = ""
+    now = strftime("%Y%m%dT%H%M%SZ")
+    if (rrend_raw != "" && rrend_raw < now)
+        intfreq = ""
+    if (repeat_count != "")      # TODO: count repeats correctly
         intfreq = ""
 }
 
@@ -317,9 +328,8 @@ BEGIN {
     # print "lasttimestamp+max_age_seconds: " lasttimestamp+max_age_seconds
     # print "systime(): " systime()
 
-    # TODO: this is where to fix recurring entries that stop showing up -- fix
-    # lasttimestamp and/or max_age_seconds
-    if(max_age<0 || ( lasttimestamp>0 && systime()<lasttimestamp+max_age_seconds ) )
+    is_duplicate = (id in UIDS);
+    if(is_duplicate == 0 && (max_age<0 || intfreq != "" || ( lasttimestamp>0 && systime()<lasttimestamp+max_age_seconds )) )
     {
         if (attending != attending_types["NOT_ATTENDING"]) {
             # build org timestamp
@@ -357,6 +367,7 @@ BEGIN {
             if (original)
                 print "** COMMENT original iCal entry\n", gensub("\r", "", "g", icalentry)
         }
+        UIDS[id] = 1;
     }
 }
 
