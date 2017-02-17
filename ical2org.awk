@@ -96,7 +96,7 @@ BEGIN {
     emailaddress = ENVIRON["EMAIL"] != "" ? ENVIRON["EMAIL"] : "unknown calendar"
 
     # calendar/category name for display in org-mode
-    calendarname = ENVIRON["CALENDAR_NAME"] != "" ? ENVIRON["CALENDAR_NAME"] : "unknown calendar"
+    calendarname = ENVIRON["CALENDAR"] != "" ? ENVIRON["CALENDAR"] : "unknown calendar"
 
     # timezone offsets
     # TODO: this is stupid
