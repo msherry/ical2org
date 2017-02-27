@@ -64,6 +64,9 @@ BEGIN {
     # with multiple VEVENTS
     UIDS[0];
 
+    # map of people attending a given event
+    people_attending[0];
+
     # maximum age in days for entries to be output: set this to -1 to
     # get all entries or to N>0 to only get enties that start or end
     # less than N days ago
@@ -144,6 +147,7 @@ BEGIN {
         attendee = attendee gensub("\r", "", "g", gensub("^[ ]", "", 1, $0))
         # print "attendee continuation: " attendee
         are_we_going(attendee)
+        add_attendee(attendee)
     }
     if (preserve)
         icalentry = icalentry "\n" $0
@@ -160,6 +164,7 @@ BEGIN {
     insummary = 0
     inattendee = 0
     attending = attending_types["UNSET"];
+    # http://unix.stackexchange.com/a/147958/129055
     intfreq = "" # the interval and frequency for repeating org timestamps
     lasttimestamp = -1;
     location = ""
@@ -167,6 +172,7 @@ BEGIN {
     status = ""
     summary = ""
     attendee = ""
+    delete people_attending;
 
     # if this is the first event, output the preamble from the iCal file
     if (first) {
@@ -351,6 +357,8 @@ BEGIN {
                 print "  :STATUS:    " status
             attending_string = attending_types[attending]
             print "  :ATTENDING: " attending_string
+            print "  :ATTENDEES: " join_keys(people_attending)
+
             print "  :END:"
             if (!condense)
                  print "<" date ">"
@@ -365,6 +373,22 @@ BEGIN {
         }
         UIDS[id] = 1;
     }
+}
+
+
+# Join keys in an array, return a string
+function join_keys(input)
+{
+    joined = "";
+    first = 1;
+    for (key in input)
+    {
+        if (first != 1)
+            joined = joined ", "
+        joined = joined key
+        first = 0;
+    }
+    return joined;
 }
 
 
@@ -480,6 +504,17 @@ function datestring(input, isenddate)
 
     # return the date and day of week
     return strftime("%Y-%m-%d %a", stamp);
+}
+
+# Add the current attendee's response to a set, so we can list who's going
+# and who's declined
+function add_attendee(attendee)
+{
+    match(attendee, /CN=([^;]+)/, m)
+    {
+        CN = tolower(m[1]);
+        people_attending[CN] = 1;
+    }
 }
 
 # Parse the current ATTENDEE line and see if it belongs to us. If so, check if
