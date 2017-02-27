@@ -130,10 +130,9 @@ BEGIN {
     }
 }
 
-# continuation lines (at least from Google) start with a space
-# if the continuation is after a description or a summary, append the entry
-# to the respective variable
-
+# continuation lines (at least from Google) start with a space. If the
+# continuation is after a processed field (description, summary, attendee,
+# etc.) append the entry to the respective variable
 /^[ ]/ {
     if (indescription) {
         entry = entry gensub("\r", "", "g", gensub("^[ ]", "", 1, $0));
@@ -300,9 +299,7 @@ BEGIN {
 }
 
 /^LOCATION/ {
-    location = gensub("\r", "", "g", $2);
-    # Unescape commas
-    location = gensub("\\\\,", ",", "g", location);
+    location = unescape(gensub("\r", "", "g", $2));
     # print "Location: " location
 }
 
@@ -343,9 +340,9 @@ BEGIN {
 
             # translate \n sequences to actual newlines and unprotect commas (,)
             if (condense)
-                print "* <" date "> " gensub("^[ ]+", "", "", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary)))
+                print "* <" date "> " gensub("^[ ]+", "", "", unescape(summary))
             else
-                print "* " gensub("^[ ]+", "", "g", gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", summary)))
+                print "* " gensub("^[ ]+", "", "g", unescape(summary))
             print "  :PROPERTIES:"
             print     "  :ID:        " id
             if(length(location))
@@ -359,9 +356,8 @@ BEGIN {
                  print "<" date ">"
 
             print ""
-            # translate \n sequences to actual newlines and unprotect commas (,)
             if(length(entry)>1)
-                print gensub("^[ ]+", "", "g", gensub("\\\\,", ",", "g", gensub("\\\\n", "\n", "g", entry)));
+                print gensub("^[ ]+", "", "g", unescape(entry));
 
             # output original entry if requested by 'original' config option
             if (original)
@@ -371,6 +367,15 @@ BEGIN {
     }
 }
 
+
+# unescape commas and newlines. newlines are simply converted to spaces --
+# using "\n" in the regex will convert to real newlines, but the org-agenda
+# view of locations looks better with just spaces since it shows more of an
+# address
+function unescape(input)
+{
+    return gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", input))
+}
 
 
 # funtion to convert an iCal time string 'yyyymmddThhmmss[Z]' into a
