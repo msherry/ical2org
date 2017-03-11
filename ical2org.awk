@@ -129,6 +129,7 @@ BEGIN {
         print "#+CATEGORY:   ", calendarname
         print "#+STARTUP:     hidestars"
         print "#+STARTUP:     overview"
+        print "#+FILETAGS:   ", calendarname == "pinterest" ? "WORK" : "PERSONAL"
         print ""
     }
 }
@@ -182,7 +183,7 @@ BEGIN {
         }
         if (preserve)
             icalentry = ""
-        first = false;
+        first = 0;
     }
 }
 
@@ -245,7 +246,11 @@ BEGIN {
 
     time2 = datetimestring($2, offset);
     if (substr(date,1,10) == substr(time2,1,10)) {
-        # timespan within same date, use one date with a time range
+        # timespan within same date, use one date with a time range, but preserve
+        # original dates for org-clocktable
+        date1 = date
+        date2 = time2
+
         date = date "-" substr(time2, length(time2)-4)
         time2 = ""
     }
@@ -358,8 +363,14 @@ BEGIN {
             attending_string = attending_types[attending]
             print "  :ATTENDING: " attending_string
             print "  :ATTENDEES: " join_keys(people_attending)
-
             print "  :END:"
+            if (date2 != "")
+            {
+                # Fake some logbook entries so we can generate a clock report
+                print "  :LOGBOOK:"
+                print "  CLOCK: [" date1 "]--[" date2 "] =>  " "0:00"
+                print "  :END"
+            }
             if (!condense)
                  print "<" date ">"
 
@@ -380,13 +391,13 @@ BEGIN {
 function join_keys(input)
 {
     joined = "";
-    first = 1;
+    first_key = 1;
     for (key in input)
     {
         if (first != 1)
             joined = joined ", "
         joined = joined key
-        first = 0;
+        first_key = 0;
     }
     return joined;
 }
