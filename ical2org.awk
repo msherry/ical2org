@@ -394,7 +394,7 @@ function join_keys(input)
     first_key = 1;
     for (key in input)
     {
-        if (first != 1)
+        if (first_key != 1)
             joined = joined ", "
         joined = joined key
         first_key = 0;
