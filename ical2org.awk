@@ -403,13 +403,15 @@ function join_keys(input)
 }
 
 
-# unescape commas and newlines. newlines are simply converted to spaces --
+# unescape commas, newlines, etc. newlines are simply converted to spaces --
 # using "\n" in the regex will convert to real newlines, but the org-agenda
 # view of locations looks better with just spaces since it shows more of an
 # address
 function unescape(input)
 {
-    return gensub("\\\\,", ",", "g", gensub("\\\\n", " ", "g", input))
+    return gensub("\\\\,", ",", "g",
+                  gensub("\\\\n", " ", "g",
+                          gensub("\\\\;", ";", "g", input)))
 }
 
 
