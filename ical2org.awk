@@ -129,7 +129,7 @@ BEGIN {
         print "#+CATEGORY:   ", calendarname
         print "#+STARTUP:     hidestars"
         print "#+STARTUP:     overview"
-        print "#+FILETAGS:   ", calendarname == "pinterest" ? "WORK" : "PERSONAL"
+        print "#+FILETAGS:   ", calendarname == "dropbox" ? "WORK" : "PERSONAL"
         print ""
     }
 }
@@ -545,7 +545,9 @@ function are_we_going(attendee)
 
     match(attendee, /CN=([^;]+)/, m)
     {
-        CN = tolower(m[1])
+        # CN's can optionally be surrounded by quotes (google calendar download
+        # omits, apple calendar export includes them)
+        CN = gensub("\"", "", "g", tolower(m[1]));
         # TODO: no hardcoding
         if (CN == tolower(author) || CN == tolower(emailaddress))
         {
