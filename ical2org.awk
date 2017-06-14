@@ -167,6 +167,7 @@ BEGIN {
     insummary = 0
     inattendee = 0
     inlocation = 0
+    got_time2 = 0
     attending = attending_types["UNSET"];
     # http://unix.stackexchange.com/a/147958/129055
     intfreq = "" # the interval and frequency for repeating org timestamps
@@ -214,6 +215,7 @@ BEGIN {
 }
 
 /^DTEND;VALUE=DATE/ {
+    got_time2 = 1
     time2 = datestring($2, 1);
     if ( issameday )
         time2 = ""
@@ -234,11 +236,16 @@ BEGIN {
 
     date = datetimestring($2, offset);
     # print date;
+
+    if (got_time2) {
+        fix_date_time()
+    }
 }
 
 # and the same for the end date;
 
 /^DTEND[:;][^V]/ {
+    # NOTE: this doesn't necessarily appear after DTSTART
     tz = "";
     match($0, /TZID=([^:]*)/, a)
     {
@@ -248,14 +255,11 @@ BEGIN {
     offset = tz_offsets[tz]
 
     time2 = datetimestring($2, offset);
-    if (substr(date,1,10) == substr(time2,1,10)) {
-        # timespan within same date, use one date with a time range, but preserve
-        # original dates for org-clocktable
-        date1 = date
-        date2 = time2
+    got_time2 = 1
 
-        date = date "-" substr(time2, length(time2)-4)
-        time2 = ""
+    if (date != "") {
+        # We got start and end date/time, let's munge as appropriate
+        fix_date_time()
     }
 }
 
@@ -534,6 +538,19 @@ function add_attendee(attendee)
     {
         CN = tolower(m[1]);
         people_attending[CN] = 1;
+    }
+}
+
+function fix_date_time()
+{
+    if (substr(date,1,10) == substr(time2,1,10)) {
+        # timespan within same date, use one date with a time range, but preserve
+        # original dates for org-clocktable
+        date1 = date
+        date2 = time2
+
+        date = date "-" substr(time2, length(time2)-4)
+        time2 = ""
     }
 }
 
