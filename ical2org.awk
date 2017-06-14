@@ -149,6 +149,8 @@ BEGIN {
         # print "attendee continuation: " attendee
         are_we_going(attendee)
         add_attendee(attendee)
+    } else if (inlocation) {
+        location = location gensub("\r", "", "g", gensub("^[ ]", "", 1, $0))
     }
     if (preserve)
         icalentry = icalentry "\n" $0
@@ -164,6 +166,7 @@ BEGIN {
     indescription = 0;
     insummary = 0
     inattendee = 0
+    inlocation = 0
     attending = attending_types["UNSET"];
     # http://unix.stackexchange.com/a/147958/129055
     intfreq = "" # the interval and frequency for repeating org timestamps
@@ -259,6 +262,9 @@ BEGIN {
 # repetition rule
 
 /^RRULE:FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/ {
+    # TODO: handle BYDAY values for events that repeat weekly for multiple days
+    # (e.g. a "Gym" event)
+
     # get the d, w, m or y value
     freq = tolower(gensub(/.*FREQ=(.).*/, "\\1", 1, $0))
     # get the interval, and use 1 if none specified
@@ -311,6 +317,7 @@ BEGIN {
 
 /^LOCATION/ {
     location = unescape(gensub("\r", "", "g", $2));
+    inlocation = 1;
     # print "Location: " location
 }
 
