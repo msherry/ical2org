@@ -167,6 +167,7 @@ BEGIN {
     insummary = 0
     inattendee = 0
     inlocation = 0
+    in_alarm = 0
     got_time2 = 0
     attending = attending_types["UNSET"];
     # http://unix.stackexchange.com/a/147958/129055
@@ -192,6 +193,15 @@ BEGIN {
 }
 
 # any line that starts at the left with a non-space character is a new data field
+
+/^BEGIN:VALARM/ {
+    # alarms have their own UID, DESCRIPTION, etc. We don't want these polluting the real fields
+    in_alarm = 1
+}
+
+/^END:VALARM/ {
+    in_alarm = 0
+}
 
 /^[A-Z]/ {
     # we do not copy DTSTAMP lines as they change every time you download
@@ -231,13 +241,12 @@ BEGIN {
     {
         tz = a[1];
     }
-
     offset = tz_offsets[tz]
 
     date = datetimestring($2, offset);
     # print date;
 
-    if (got_time2) {
+    if (date != "" && got_time2) {
         fix_date_time()
     }
 }
@@ -251,13 +260,12 @@ BEGIN {
     {
         tz = a[1];
     }
-
     offset = tz_offsets[tz]
 
     time2 = datetimestring($2, offset);
     got_time2 = 1
 
-    if (date != "") {
+    if (date != "" && got_time2) {
         # We got start and end date/time, let's munge as appropriate
         fix_date_time()
     }
@@ -294,9 +302,11 @@ BEGIN {
 # this line may be continued.
 
 /^DESCRIPTION/ {
-    $1 = "";
-    entry = entry gensub("\r", "", "g", $0);
-    indescription = 1;
+    if (!in_alarm) {
+        $1 = "";
+        entry = entry gensub("\r", "", "g", $0);
+        indescription = 1;
+    }
 }
 
 # the summary will be the org heading
@@ -316,7 +326,9 @@ BEGIN {
 # the unique ID will be stored as a property of the entry
 
 /^UID/ {
-    id = gensub("\r", "", "g", $2);
+    if (!in_alarm) {
+        id = gensub("\r", "", "g", $2);
+    }
 }
 
 /^LOCATION/ {
