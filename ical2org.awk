@@ -168,7 +168,7 @@ BEGIN {
     inattendee = 0
     inlocation = 0
     in_alarm = 0
-    got_time2 = 0
+    got_end_date = 0
     attending = attending_types["UNSET"];
     # http://unix.stackexchange.com/a/147958/129055
     intfreq = "" # the interval and frequency for repeating org timestamps
@@ -225,12 +225,11 @@ BEGIN {
 }
 
 /^DTEND;VALUE=DATE/ {
-    got_time2 = 1
-    time2 = datestring($2, 1);
+    got_end_date = 1
+    end_date = datestring($2, 1);
     if ( issameday )
-        time2 = ""
+        end_date = ""
 }
-
 
 
 # this represents a timed entry with date and time stamp YYYYMMDDTHHMMSS
@@ -246,7 +245,7 @@ BEGIN {
     date = datetimestring($2, offset);
     # print date;
 
-    if (date != "" && got_time2) {
+    if (date != "" && got_end_date) {
         fix_date_time()
     }
 }
@@ -262,10 +261,10 @@ BEGIN {
     }
     offset = tz_offsets[tz]
 
-    time2 = datetimestring($2, offset);
-    got_time2 = 1
+    end_date = datetimestring($2, offset);
+    got_end_date = 1
 
-    if (date != "" && got_time2) {
+    if (date != "" && got_end_date) {
         # We got start and end date/time, let's munge as appropriate
         fix_date_time()
     }
@@ -289,7 +288,7 @@ BEGIN {
     intfreq =  " +" interval freq
     # if the repetition is daily, and there is an end date, drop the repetitor
     # as that is the default
-    if (intfreq == " +1d" && time2 == "" && rrend != "")
+    if (intfreq == " +1d" && end_date == "" && rrend != "")
         intfreq = ""
     now = strftime("%Y%m%dT%H%M%SZ")
     if (rrend_raw != "" && rrend_raw < now)
@@ -367,8 +366,8 @@ BEGIN {
             if (intfreq != "")
                 date = date intfreq
             # TODO: http://orgmode.org/worg/org-faq.html#org-diary-class
-            else if (time2 != "")
-                date = date ">--<" time2
+            else if (end_date != "")
+                date = date ">--<" end_date
             else if (rrend != "")
                 date = date ">--<" rrend
 
@@ -555,14 +554,14 @@ function add_attendee(attendee)
 
 function fix_date_time()
 {
-    if (substr(date,1,10) == substr(time2,1,10)) {
+    if (substr(date,1,10) == substr(end_date,1,10)) {
         # timespan within same date, use one date with a time range, but preserve
         # original dates for org-clocktable
         date1 = date
-        date2 = time2
+        date2 = end_date
 
-        date = date "-" substr(time2, length(time2)-4)
-        time2 = ""
+        date = date "-" substr(end_date, length(end_date)-4)
+        end_date = ""
     }
 }
 
