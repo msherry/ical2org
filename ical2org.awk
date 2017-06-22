@@ -302,8 +302,10 @@ BEGIN {
 
 /^DESCRIPTION/ {
     if (!in_alarm) {
-        $1 = "";
-        entry = entry gensub("\r", "", "g", $0);
+        # Setting $1 to "" clears colons from items like "1:1 with Marc", so we
+        # strip "DESCRIPTION:" off of the front instead
+        # $1 = "";
+        entry = entry gensub("\r", "", "g", gensub(/^DESCRIPTION:/, "", 1, $0));
         indescription = 1;
     }
 }
@@ -312,7 +314,7 @@ BEGIN {
 
 /^SUMMARY/ {
     # Setting $1 to "" clears colons from items like "1:1 with Marc", so we
-    # strip "SUMMARY" off of the front instead
+    # strip "SUMMARY:" off of the front instead
     summary = gensub("\r", "", "g", gensub(/^SUMMARY:/, "", 1, $0));
 
     # trim trailing dots if requested by config option
