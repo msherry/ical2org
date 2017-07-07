@@ -333,7 +333,7 @@ BEGIN {
 }
 
 /^LOCATION/ {
-    location = unescape(gensub("\r", "", "g", $2));
+    location = unescape(gensub("\r", "", "g", $2), 0);
     inlocation = 1;
     # print "Location: " location
 }
@@ -375,9 +375,9 @@ BEGIN {
 
             # translate \n sequences to actual newlines and unprotect commas (,)
             if (condense)
-                print "* <" date "> " gensub("^[ ]+", "", "", unescape(summary))
+                print "* <" date "> " gensub("^[ ]+", "", "", unescape(summary, 0))
             else
-                print "* " gensub("^[ ]+", "", "g", unescape(summary))
+                print "* " gensub("^[ ]+", "", "g", unescape(summary, 0))
             print "  :PROPERTIES:"
             print     "  :ID:        " id
             if(length(location))
@@ -400,7 +400,7 @@ BEGIN {
 
             print ""
             if(length(entry)>1)
-                print gensub("^[ ]+", "", "g", unescape(entry));
+                print gensub("^[ ]+", "", "g", unescape(entry, 1));
 
             # output original entry if requested by 'original' config option
             if (original)
@@ -427,15 +427,22 @@ function join_keys(input)
 }
 
 
-# unescape commas, newlines, etc. newlines are simply converted to spaces --
-# using "\n" in the regex will convert to real newlines, but the org-agenda
-# view of locations looks better with just spaces since it shows more of an
-# address
-function unescape(input)
+# unescape commas, newlines, etc. newlines are optionally converted to just
+# spaces -- it's good to preserve them in descriptions for e.g. interview
+# calendar events, but addresses look better with spaces as more info fits on a
+# line
+function unescape(input, preserve_newlines)
 {
-    return gensub("\\\\,", ",", "g",
-                  gensub("\\\\n", " ", "g",
-                          gensub("\\\\;", ";", "g", input)))
+    ret = gensub("\\\\,", ",", "g",
+                 gensub("\\\\;", ";", "g", input))
+    if (preserve_newlines)
+        ret = gensub("\\\\n", "\n", "g", ret)
+    else
+        ret = gensub("\\\\n", " ", "g", ret)
+    return ret
+    # return gensub("\\\\,", ",", "g",
+    #               gensub("\\\\n", " ", "g",
+    #                       gensub("\\\\;", ";", "g", input)))
 }
 
 
