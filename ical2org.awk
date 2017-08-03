@@ -150,7 +150,8 @@ BEGIN {
         are_we_going(attendee)
         add_attendee(attendee)
     } else if (inlocation) {
-        location = location gensub("\r", "", "g", gensub("^[ ]", "", 1, $0))
+        location = location unescape(gensub("\r", "", "g", $0), 0);
+
     }
     if (preserve)
         icalentry = icalentry "\n" $0
