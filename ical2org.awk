@@ -97,13 +97,16 @@ BEGIN {
     trimdots = 1;
 
     # change this to your name
-    author = "Marc Sherry"
+    author = ENVIRON["AUTHOR"] != "" ? ENVIRON["AUTHOR"] : "Marc Sherry"
 
     # and to your email address
     emailaddress = ENVIRON["EMAIL"] != "" ? ENVIRON["EMAIL"] : "unknown"
 
     # calendar/category name for display in org-mode
     calendarname = ENVIRON["CALENDAR"] != "" ? ENVIRON["CALENDAR"] : "unknown"
+
+    # any tags for this calendar (e.g. "WORK" or "PERSONAL")
+    filetags = ENVIRON["FILETAGS"] != "" ? ENVIRON["FILETAGS"] : "unknown"
 
     # timezone offsets
     # TODO: this is stupid
@@ -129,7 +132,7 @@ BEGIN {
         print "#+CATEGORY:   ", calendarname
         print "#+STARTUP:     hidestars"
         print "#+STARTUP:     overview"
-        print "#+FILETAGS:   ", calendarname == "dropbox" ? "WORK" : "PERSONAL"
+        print "#+FILETAGS:   ", filetags
         print ""
     }
 }
