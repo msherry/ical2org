@@ -1,4 +1,4 @@
-#!/usr/bin/env gawk -f
+#!/usr/bin/env -S gawk -f
 # awk script for converting an iCal formatted file to a sequence of org-mode headings.
 # this may not work in general but seems to work for day and timed events from Google's
 # calendar, which is really all I need right now...
