@@ -319,13 +319,15 @@ BEGIN {
 /^SUMMARY/ {
     # Setting $1 to "" clears colons from items like "1:1 with Marc", so we
     # strip "SUMMARY:" off of the front instead
-    summary = gensub("\r", "", "g", gensub(/^SUMMARY:/, "", 1, $0));
+    if (!in_alarm) {
+       summary = gensub("\r", "", "g", gensub(/^SUMMARY:/, "", 1, $0));
 
-    # trim trailing dots if requested by config option
-    if(trimdots && summary ~ /\.\.\.$/)
-        sub(/\.\.\.$/, "", summary)
-    insummary = 1;
-    # print "Summary: " summary
+       # trim trailing dots if requested by config option
+       if(trimdots && summary ~ /\.\.\.$/)
+           sub(/\.\.\.$/, "", summary)
+       insummary = 1;
+       # print "Summary: " summary
+    }
 }
 
 # the unique ID will be stored as a property of the entry
