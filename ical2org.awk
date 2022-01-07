@@ -391,6 +391,11 @@ BEGIN {
             if(length(status))
                 print "  :STATUS:    " status
             attending_string = attending_types[attending]
+            if(attending_string == "UNSET")
+                # No attending info at all -- assume this is an event we
+                # created to block off our calendar, with no attendees, and
+                # mark it as attending
+                attending_string = "ATTENDING"
             print "  :ATTENDING: " attending_string
             print "  :ATTENDEES: " join_keys(people_attending)
             print "  :END:"
