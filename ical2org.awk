@@ -224,11 +224,11 @@ BEGIN {
 
 # this type of entry represents a day entry, not timed, with date stamp YYYYMMDD
 
-/^DTSTART;VALUE=DATE/ {
+/^DTSTART;VALUE=DATE[^-]/ {
     date = datestring($2);
 }
 
-/^DTEND;VALUE=DATE/ {
+/^DTEND;VALUE=DATE[^-]/ {
     got_end_date = 1
     end_date = datestring($2, 1);
     if ( issameday )
@@ -273,6 +273,38 @@ BEGIN {
         fix_date_time()
     }
 }
+
+
+# this represents a timed entry with a UTC datetime stamp YYYYMMDDTHHMMSSZ
+# we ignore the seconds
+/^DTSTART[:;]VALUE=DATE-TIME/ {
+    tz = "";
+    offset = tz_offsets[tz]
+
+    date = datetimestring($2, offset);
+    # print date;
+
+    if (date != "" && got_end_date) {
+        fix_date_time()
+    }
+}
+
+# and the same for the end date;
+
+/^DTEND[:;]VALUE=DATE-TIME/ {
+    # NOTE: this doesn't necessarily appear after DTSTART
+    tz = "";
+    offset = tz_offsets[tz]
+
+    end_date = datetimestring($2, offset);
+    got_end_date = 1
+
+    if (date != "" && got_end_date) {
+        # We got start and end date/time, let's munge as appropriate
+        fix_date_time()
+    }
+}
+
 
 # repetition rule
 
