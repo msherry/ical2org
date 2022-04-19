@@ -102,6 +102,9 @@ BEGIN {
     # and to your email address
     emailaddress = ENVIRON["EMAIL"] != "" ? ENVIRON["EMAIL"] : "unknown"
 
+    # main title of the Org file
+    title = ENVIRON["TITLE"] != "" ? ENVIRON["TITLE"] : "Main Google calendar entries"
+
     # calendar/category name for display in org-mode
     calendarname = ENVIRON["CALENDAR"] != "" ? ENVIRON["CALENDAR"] : "unknown"
 
@@ -125,7 +128,7 @@ BEGIN {
     max_age_seconds = max_age*24*60*60
 
     if (header) {
-        print "#+TITLE:       Main Google calendar entries"
+        print "#+TITLE:      ", title
         print "#+AUTHOR:     ", author
         print "#+EMAIL:      ", emailaddress
         print "#+DESCRIPTION: converted using the ical2org awk script"
