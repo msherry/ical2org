@@ -398,8 +398,8 @@ in_daylight && /TZOFFSETFROM:[^:]/{
 
 /^UID/ {
     if (!in_alarm) {
-        # id = gensub("\r", "", "g", $2);
-	id = id "" $2
+        id = id gensub("\r", "", "g", $2);
+	
     }
 }
 
