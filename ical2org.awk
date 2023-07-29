@@ -252,17 +252,6 @@ in_daylight && /TZOFFSETFROM:[^:]/{
     date = datestring($2);
 }
 
-/^DTSTART;TZID=([A-Z]{2}[0-9]{3});VALUE=DATE/{
-    date = datestring($2, TZID[$1])
-}
-
-/^DTEND;TZID=([A-Z]{2}[0-9]{3});VALUE=DATE/ {
-    got_end_date = 1
-    end_date = datestring($2, TZID[$1]);
-    if ( issameday )
-        end_date = ""
-}
-
 /^DTEND;VALUE=DATE[^-]/ {
     got_end_date = 1
     end_date = datestring($2, 1);
