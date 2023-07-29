@@ -115,6 +115,7 @@ BEGIN {
     # TODO: this is stupid
     tz_correct = 1
     local_tz_offset = -500
+    tzones = 0
 
 
     ### end config section
@@ -142,14 +143,21 @@ BEGIN {
 /TZID:[^:]/ {
     tzid = $2
 }
-/BEGIN:VTIMEZONE/{in_vtimezone = 1}
+/BEGIN:VTIMEZONE/{
+    in_vtimezone = 1
+    if (tzones == 0){
+        print "* Timezones Used"
+	print "|zone| offset (hrs)|"
+    }
+    tzones += 1
+}
 /END:VTIMEZONE/{in_vtimezone = 0}
 /BEGIN:DAYLIGHT/{in_daylight = 1}
 
 in_daylight && /TZOFFSETFROM:[^:]/{
     tzoffset = $2
-    tz_offsets[tzid] = (tzoffset-local_tz_offset)  # store the offset in hhmm
-    print tzid " " tz_offsets[tzid]
+    tz_offsets[tzid] = (tzoffset-local_tz_offset)/100  # store the offset in hhmm
+    print "|" tzid "|" tz_offsets[tzid] "|"
 }
 
 /END:DAYLIGHT/{in_daylight = 0}
@@ -270,14 +278,10 @@ in_daylight && /TZOFFSETFROM:[^:]/{
     match($0, /TZID=([^:]+)/, a)
     { # grab timezone offset here
         tz = a[1];
-	print tz
     }
-
+    id = id $2
     offset = tz_offsets[tz]
-    print "offset: " $2
     date = datetimestring($2, offset);
-    print date;
-
     if (date != "" && got_end_date) {
         fix_date_time()
     }
@@ -309,7 +313,7 @@ in_daylight && /TZOFFSETFROM:[^:]/{
 /^DTSTART[:;]VALUE=DATE-TIME/ {
     tz = "";
     offset = tz_offsets[tz]
-
+    date_id = $2
     date = datetimestring($2, offset);
     # print date;
 
@@ -395,7 +399,8 @@ in_daylight && /TZOFFSETFROM:[^:]/{
 
 /^UID/ {
     if (!in_alarm) {
-        id = gensub("\r", "", "g", $2);
+        # id = gensub("\r", "", "g", $2);
+	id = id "" $2
     }
 }
 
@@ -428,6 +433,7 @@ in_daylight && /TZOFFSETFROM:[^:]/{
     # print "systime(): " systime()
 
     is_duplicate = (id in UIDS);
+    # is_duplicate = 0;
     if(is_duplicate == 0 && (max_age<0 || intfreq != "" || ( lasttimestamp>0 && systime()<lasttimestamp+max_age_seconds )) )
     {
         if (attending != attending_types["NOT_ATTENDING"]) {
