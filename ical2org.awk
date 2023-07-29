@@ -248,7 +248,7 @@ BEGIN {
         tz = a[1];
     }
     offset = tz_offsets[tz]
-
+    id = id $2 ":"
     date = datetimestring($2, offset);
     # print date;
 
@@ -369,7 +369,7 @@ BEGIN {
 
 /^UID/ {
     if (!in_alarm) {
-        id = gensub("\r", "", "g", $2);
+        id = id gensub("\r", "", "g", $2);
     }
 }
 
