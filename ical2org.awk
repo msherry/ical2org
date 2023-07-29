@@ -113,7 +113,8 @@ BEGIN {
 
     # timezone offsets
     # TODO: this is stupid
-    est_offset = -500
+    tz_correct = 1
+    local_tz_offset = -500
 
 
     ### end config section
@@ -147,7 +148,7 @@ BEGIN {
 
 in_daylight && /TZOFFSETFROM:[^:]/{
     tzoffset = $2
-    tz_offsets[tzid] = (tzoffset-est_offset)  # store the offset in hhmm
+    tz_offsets[tzid] = (tzoffset-local_tz_offset)  # store the offset in hhmm
     print tzid " " tz_offsets[tzid]
 }
 
@@ -536,7 +537,7 @@ function datetimestring(input, offset)
     sec = a[6]
     # print "spec :" spec
 
-    if (offset > 0)
+    if (tz_correct)
     {
         hour -= offset
     }
