@@ -313,7 +313,6 @@ in_daylight && /TZOFFSETFROM:[^:]/{
 /^DTSTART[:;]VALUE=DATE-TIME/ {
     tz = "";
     offset = tz_offsets[tz]
-    date_id = $2
     date = datetimestring($2, offset);
     # print date;
 
