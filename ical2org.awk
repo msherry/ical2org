@@ -279,7 +279,7 @@ in_daylight && /TZOFFSETFROM:[^:]/{
     { # grab timezone offset here
         tz = a[1];
     }
-    id = id $2
+    id = id $2 ":"
     offset = tz_offsets[tz]
     date = datetimestring($2, offset);
     if (date != "" && got_end_date) {
