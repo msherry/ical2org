@@ -70,7 +70,7 @@ BEGIN {
     # maximum age in days for entries to be output: set this to -1 to
     # get all entries or to N>0 to only get enties that start or end
     # less than N days ago
-    max_age = 7;
+    max_age = 5;
 
     # set to 1 or 0 to yes or not output a header block with TITLE,
     # AUTHOR, EMAIL etc...
@@ -78,7 +78,7 @@ BEGIN {
 
     # set to 1 or 0 to yes or not output the original ical preamble as
     # comment
-    preamble = 1;
+    preamble = 0;
 
     # set to 1 to output time and summary as one line starting with
     # the time (value 1) or to 0 to output the summary as first line
@@ -88,22 +88,22 @@ BEGIN {
 
     # set to 1 or 0 to yes or not output the original ical entry as a
     # comment (mostly useful for debugging purposes)
-    original = 1;
+    original = 0;
 
     # google truncates long subjects with ... which is misleading in
     # an org file: it gives the unfortunate impression that an
     # expanded entry is still collapsed; value 1 will trim those
     # ... and value 0 doesn't touch them
-    trimdots = 1;
+    trimdots = 0;
 
     # change this to your name
-    author = ENVIRON["AUTHOR"] != "" ? ENVIRON["AUTHOR"] : "Marc Sherry"
+    author = ENVIRON["AUTHOR"] != "" ? ENVIRON["AUTHOR"] : "Andrew Nelson"
 
     # and to your email address
-    emailaddress = ENVIRON["EMAIL"] != "" ? ENVIRON["EMAIL"] : "unknown"
+    emailaddress = ENVIRON["EMAIL"] != "" ? ENVIRON["EMAIL"] : "andrewnelsonnyc@gmail.com"
 
     # main title of the Org file
-    title = ENVIRON["TITLE"] != "" ? ENVIRON["TITLE"] : "Main Google calendar entries"
+    title = ENVIRON["TITLE"] != "" ? ENVIRON["TITLE"] : "Google Calendar"
 
     # calendar/category name for display in org-mode
     calendarname = ENVIRON["CALENDAR"] != "" ? ENVIRON["CALENDAR"] : "unknown"
@@ -113,8 +113,8 @@ BEGIN {
 
     # timezone offsets
     # TODO: this is stupid
-    tz_offsets["America/Los_Angeles"] = 0
-    tz_offsets["America/Chicago"] = 2
+    est_offset = -500
+
 
     ### end config section
 
@@ -131,15 +131,27 @@ BEGIN {
         print "#+TITLE:      ", title
         print "#+AUTHOR:     ", author
         print "#+EMAIL:      ", emailaddress
-        print "#+DESCRIPTION: converted using the ical2org awk script"
-        print "#+CATEGORY:   ", calendarname
-        print "#+STARTUP:     hidestars"
-        print "#+STARTUP:     overview"
-        print "#+FILETAGS:   ", filetags
         print ""
     }
 }
 
+# Get timezone information
+
+
+/TZID:[^:]/ {
+    tzid = $2
+}
+/BEGIN:VTIMEZONE/{in_vtimezone = 1}
+/END:VTIMEZONE/{in_vtimezone = 0}
+/BEGIN:DAYLIGHT/{in_daylight = 1}
+
+in_daylight && /TZOFFSETFROM:[^:]/{
+    tzoffset = $2
+    tz_offsets[tzid] = (tzoffset-est_offset)  # store the offset in hhmm
+    print tzid " " tz_offsets[tzid]
+}
+
+/END:DAYLIGHT/{in_daylight = 0}
 # continuation lines (at least from Google) start with a space. If the
 # continuation is after a processed field (description, summary, attendee,
 # etc.) append the entry to the respective variable
@@ -231,6 +243,17 @@ BEGIN {
     date = datestring($2);
 }
 
+/^DTSTART;TZID=([A-Z]{2}[0-9]{3});VALUE=DATE/{
+    date = datestring($2, TZID[$1])
+}
+
+/^DTEND;TZID=([A-Z]{2}[0-9]{3});VALUE=DATE/ {
+    got_end_date = 1
+    end_date = datestring($2, TZID[$1]);
+    if ( issameday )
+        end_date = ""
+}
+
 /^DTEND;VALUE=DATE[^-]/ {
     got_end_date = 1
     end_date = datestring($2, 1);
@@ -241,16 +264,18 @@ BEGIN {
 
 # this represents a timed entry with date and time stamp YYYYMMDDTHHMMSS
 # we ignore the seconds
-/^DTSTART[:;][^V]/ {
+!in_vtimezone && /^DTSTART[:;]/ {
     tz = "";
-    match($0, /TZID=([^:]*)/, a)
-    {
+    match($0, /TZID=([^:]+)/, a)
+    { # grab timezone offset here
         tz = a[1];
+	print tz
     }
+
     offset = tz_offsets[tz]
-    id = id $2 ":"
+    print "offset: " $2
     date = datetimestring($2, offset);
-    # print date;
+    print date;
 
     if (date != "" && got_end_date) {
         fix_date_time()
@@ -369,7 +394,7 @@ BEGIN {
 
 /^UID/ {
     if (!in_alarm) {
-        id = id gensub("\r", "", "g", $2);
+        id = gensub("\r", "", "g", $2);
     }
 }
 
