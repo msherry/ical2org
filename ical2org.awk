@@ -327,7 +327,7 @@ BEGIN {
 /^RRULE:FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/ {
     # handle BYDAY values for events that repeat weekly for multiple days
     # (e.g. a "Gym" event - BYDAY=MO,WE,TH,SA)
-    by_day =  $2 ~ /BYDAY=/ ? gensub(/.*BYDAY=(.*);.*/, "\\1", 1, $2) : ""
+    by_day =  $2 ~ /BYDAY=/ ? gensub(/.*BYDAY=(([A-Z]{2},?)+);?.*/, "\\1", 1, $2) : ""
 
     # get the d, w, m or y value
     freq = tolower(gensub(/.*FREQ=(.).*/, "\\1", 1, $0))
