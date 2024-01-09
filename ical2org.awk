@@ -112,9 +112,9 @@ BEGIN {
     filetags = ENVIRON["FILETAGS"] != "" ? ENVIRON["FILETAGS"] : "unknown"
 
     # timezone offsets
-    # TODO: this is stupid
-    tz_offsets["America/Los_Angeles"] = 0
-    tz_offsets["America/Chicago"] = 2
+    "date +%z" | getline local_tz_offset
+    close("date +%z")
+    local_tz_offset = parse_timezone_offset(local_tz_offset)
 
     ### end config section
 
@@ -247,8 +247,9 @@ BEGIN {
     {
         tz = a[1];
     }
-    offset = tz_offsets[tz]
 
+    tz_offset = get_timezone_offset(tz)
+    offset = local_tz_offset - tz_offset
     date = datetimestring($2, offset);
     # print date;
 
@@ -266,7 +267,8 @@ BEGIN {
     {
         tz = a[1];
     }
-    offset = tz_offsets[tz]
+    tz_offset = get_timezone_offset(tz)
+    offset = local_tz_offset - tz_offset
 
     end_date = datetimestring($2, offset);
     got_end_date = 1
@@ -282,7 +284,7 @@ BEGIN {
 # we ignore the seconds
 /^DTSTART[:;]VALUE=DATE-TIME/ {
     tz = "";
-    offset = tz_offsets[tz]
+    offset = local_tz_offset
 
     date = datetimestring($2, offset);
     # print date;
@@ -297,7 +299,7 @@ BEGIN {
 /^DTEND[:;]VALUE=DATE-TIME/ {
     # NOTE: this doesn't necessarily appear after DTSTART
     tz = "";
-    offset = tz_offsets[tz]
+    offset = local_tz_offset
 
     end_date = datetimestring($2, offset);
     got_end_date = 1
@@ -473,6 +475,7 @@ function join_keys(input)
 }
 
 
+
 # unescape commas, newlines, etc. newlines are optionally converted to just
 # spaces -- it's good to preserve them in descriptions for e.g. interview
 # calendar events, but addresses look better with spaces as more info fits on a
@@ -491,6 +494,28 @@ function unescape(input, preserve_newlines)
     #                       gensub("\\\\;", ";", "g", input)))
 }
 
+# function to parse a timezone offset to minutes minutes
+function parse_timezone_offset(offset_string) {
+    hours = substr(offset_string, 2, 2) * 60;
+    minutes = substr(offset_string, 4, 2);
+    total_offset = hours + minutes;
+    if (substr(offset_string, 1, 1) == "-") {
+        total_offset = -total_offset;
+    }
+    return total_offset;
+}
+
+# Get timezone offset for a given timezone
+function get_timezone_offset(tz) {
+    # Construct a command to get the timezone offset for 'tz'
+    cmd = "TZ=\"" tz "\" date +%z"
+
+    # Run the command and read the output
+    cmd | getline tz_offset
+    close(cmd)
+
+    return parse_timezone_offset(tz_offset)
+}
 
 # funtion to convert an iCal time string 'yyyymmddThhmmss[Z]' into a
 # date time string as used by org, preferably including the short day
@@ -511,11 +536,6 @@ function datetimestring(input, offset)
     sec = a[6]
     # print "spec :" spec
 
-    if (offset > 0)
-    {
-        hour -= offset
-    }
-
     # print "input: " input
     # print "datetime: " year" "month" "day" "hour" "min" "sec
     stamp = mktime(year" "month" "day" "hour" "min" "sec);
@@ -531,17 +551,7 @@ function datetimestring(input, offset)
         return spec;
     }
 
-    if (input ~ /[0-9]{8}T[0-9]{6}Z/ ) {
-        # this is an utc time;
-        # we need to correct the timestamp by the utc offset for this time
-        offset = strftime("%z", stamp)
-        pm = substr(offset,1,1) 1 # define multiplier +1 or -1
-        hh = substr(offset,2,2) * 3600 * pm
-        mm = substr(offset,4,2) * 60 * pm
-
-        # adjust the timestamp
-        stamp = stamp + hh + mm
-    }
+    stamp = stamp + offset * 60;
 
     return strftime("%Y-%m-%d %a %H:%M", stamp);
 }
