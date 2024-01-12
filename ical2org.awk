@@ -116,6 +116,16 @@ BEGIN {
     close("date +%z")
     local_tz_offset = parse_timezone_offset(local_tz_offset)
 
+    # BYDAY - day definitions
+    by_day_hash["MO"] = 1
+    by_day_hash["TU"] = 2
+    by_day_hash["WE"] = 3
+    by_day_hash["TH"] = 4
+    by_day_hash["FR"] = 5
+    by_day_hash["SA"] = 6
+    by_day_hash["SU"] = 0
+
+
     ### end config section
 
     # use a colon to separate the type of data line from the actual contents
@@ -179,6 +189,9 @@ BEGIN {
     attending = attending_types["UNSET"];
     # http://unix.stackexchange.com/a/147958/129055
     intfreq = "" # the interval and frequency for repeating org timestamps
+    # BYDAY is used for events weekly on certain days. E.g. every Monday and
+    # Tuesday
+    by_day = ""
     lasttimestamp = -1;
     location = ""
     rrend = ""
@@ -314,8 +327,9 @@ BEGIN {
 # repetition rule
 
 /^RRULE:FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/ {
-    # TODO: handle BYDAY values for events that repeat weekly for multiple days
-    # (e.g. a "Gym" event)
+    # handle BYDAY values for events that repeat weekly for multiple days
+    # (e.g. a "Gym" event - BYDAY=MO,WE,TH,SA)
+    by_day =  $2 ~ /BYDAY=/ ? gensub(/.*BYDAY=(([A-Z]{2},?)+);?.*/, "\\1", 1, $2) : ""
 
     # get the d, w, m or y value
     freq = tolower(gensub(/.*FREQ=(.).*/, "\\1", 1, $0))
@@ -444,7 +458,7 @@ BEGIN {
                 print "  :END"
             }
             if (!condense)
-                 print "<" date ">"
+                 print_active_dates()
 
             print ""
             if(length(entry)>1)
@@ -458,6 +472,36 @@ BEGIN {
     }
 }
 
+
+# funtion will print the active dates of the event, if its repeating on
+# weekdays, then each weekday occurance gets its own line
+function print_active_dates(_dates, _sorted_dates)
+{
+    if (by_day == "") {
+        _dates[1] = date
+    } else {
+        n = split(by_day, repeat_days, ",")
+        starting_date_day = by_day_hash[toupper(gensub(".*([A-z]{2})[A-z].*", "\\1", 1, date))]
+        for (i = 1; i <= n; i++) {
+            current_repeate_value = repeat_days[i]
+            repeat_day = by_day_hash[current_repeate_value]
+            days_to_add = repeat_day - starting_date_day
+            if (repeat_day < starting_date_day) {
+                # this is needed if for example the first event is on Tuesday,
+                # but it should repeat on Monday as well. Then we would like to
+                # start the Monday repeat from the next closes Monday.
+                days_to_add += 7
+            }
+            new_date = shift_date_with_days(sysdate_from_org_date(date), days_to_add)
+            tail_end = substr(date, length(new_date) + 1)
+            _dates[i] = new_date tail_end
+        }
+    }
+    asort(_dates, _sorted_dates)
+    for (x in _sorted_dates) {
+        print "<" _sorted_dates[x] ">"
+    }
+}
 
 # Join keys in an array, return a string
 function join_keys(input)
@@ -605,6 +649,24 @@ function datestring(input, isenddate)
     # return the date and day of week
     return strftime("%Y-%m-%d %a", stamp);
 }
+
+# function will convert the given org-mode formatted date string to unix time
+# @param date_str org date format e.g.: 2023-08-15 Tue 09:45
+function sysdate_from_org_date(date_str)
+{
+    formatted_date_str = gensub("^([0-9]{4})-0?([0-9]{1,2})-0?([0-9]{1,2}) [A-z]{3} 0?([0-9]{1,2}):([0-9]{2}).*", "\\1 \\2 \\3 \\4 \\5 0", 1, date_str)
+    return mktime(formatted_date_str)
+}
+
+# function will return an org-mode formatted string with the given amount of
+# days shifted
+# @param date_to_shift unix time
+# @param days amount of days we should shift
+function shift_date_with_days(date_to_shift, days)
+{
+    return strftime("%Y-%m-%d %a %H:%M", date_to_shift + days * 24 * 60 * 60)
+}
+
 
 # Add the current attendee's response to a set, so we can list who's going
 # and who's declined
